@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Giro d'Italia 2026 — Live Dashboard | Dr Marco Cardinale</title>
+<meta name="description" content="Interactive Giro d'Italia 2026 race dashboard — live GC standings, stage results, points classification, rider profiles and estimated power data.">
+<meta property="og:title" content="Giro d'Italia 2026 Dashboard">
+<meta property="og:description" content="Live GC, stage results, points classification and rider profiles for the 2026 Giro d'Italia.">
+<meta property="og:type" content="website">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root{--pink:#e8185d;--purple:#9b1fe8;--blue:#1864e8;--green:#18a86b;--orange:#e87018;--dark:#1a1a2e;--dark2:#16213e;--dark3:#0f3460;--card:#1e2a45;--text:#e8eaf0;--muted:#8892a4;--border:#2a3a58;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--dark);color:var(--text);min-height:100vh;}
+  .header{background:linear-gradient(135deg,var(--pink) 0%,var(--dark3) 60%);padding:22px 32px;display:flex;align-items:center;gap:18px;box-shadow:0 4px 20px rgba(232,24,93,.3);}
+  .header-logo{font-size:40px;}
+  .header h1{font-size:26px;font-weight:800;letter-spacing:-.5px;}
+  .header p{color:rgba(255,255,255,.7);font-size:13px;margin-top:2px;}
+  .header-right{margin-left:auto;text-align:right;}
+  .live-badge{background:rgba(255,255,255,.15);border-radius:20px;padding:5px 14px;font-size:12px;font-weight:700;border:1px solid rgba(255,255,255,.3);display:inline-block;}
+  .updated{font-size:11px;color:rgba(255,255,255,.5);margin-top:4px;}
+  .nav{background:var(--dark2);border-bottom:1px solid var(--border);display:flex;padding:0 24px;gap:2px;overflow-x:auto;}
+  .tab{padding:13px 18px;font-size:13px;font-weight:600;cursor:pointer;border-bottom:3px solid transparent;color:var(--muted);transition:all .2s;white-space:nowrap;}
+  .tab:hover{color:var(--text);}
+  .tab.active{color:var(--pink);border-bottom-color:var(--pink);}
+  .content{padding:24px 32px;max-width:1400px;margin:0 auto;}
+  .page{display:none;}.page.active{display:block;}
+  .g4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:22px;}
+  .g2{display:grid;grid-template-columns:repeat(2,1fr);gap:20px;margin-bottom:22px;}
+  .g3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-bottom:22px;}
+  .kpi{background:var(--card);border-radius:12px;padding:18px;border:1px solid var(--border);position:relative;overflow:hidden;}
+  .kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--ac,var(--pink));}
+  .kpi-label{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px;}
+  .kpi-val{font-size:26px;font-weight:800;}
+  .kpi-sub{font-size:12px;color:var(--muted);margin-top:4px;}
+  .kpi-ico{position:absolute;top:14px;right:14px;font-size:26px;opacity:.15;}
+  .card{background:var(--card);border-radius:12px;padding:22px;border:1px solid var(--border);}
+  .card h3{font-size:15px;font-weight:700;margin-bottom:3px;}
+  .card .sub{font-size:11px;color:var(--muted);margin-bottom:18px;}
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th{background:var(--dark2);padding:9px 11px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:700;border-bottom:1px solid var(--border);}
+  td{padding:9px 11px;border-bottom:1px solid rgba(42,58,88,.4);}
+  tr:hover td{background:rgba(255,255,255,.02);}
+  tr:last-child td{border-bottom:none;}
+  .badge{display:inline-block;padding:2px 7px;border-radius:8px;font-size:10px;font-weight:700;text-transform:uppercase;}
+  .b-pink{background:rgba(232,24,93,.18);color:var(--pink);border:1px solid rgba(232,24,93,.3);}
+  .b-purple{background:rgba(155,31,232,.18);color:#bf7aff;border:1px solid rgba(155,31,232,.3);}
+  .b-green{background:rgba(24,168,107,.18);color:#5de0a0;border:1px solid rgba(24,168,107,.3);}
+  .b-blue{background:rgba(24,100,232,.18);color:#7ab4ff;border:1px solid rgba(24,100,232,.3);}
+  .b-orange{background:rgba(232,112,24,.18);color:#ffaa5a;border:1px solid rgba(232,112,24,.3);}
+  .b-gray{background:rgba(136,146,164,.12);color:var(--muted);}
+  .sttype{font-size:10px;padding:2px 5px;border-radius:3px;font-weight:600;}
+  .t-sprint{background:rgba(24,168,107,.2);color:#5de0a0;}
+  .t-mountain{background:rgba(232,24,93,.2);color:var(--pink);}
+  .t-tt{background:rgba(24,100,232,.2);color:#7ab4ff;}
+  .t-hilly{background:rgba(232,112,24,.2);color:#ffaa5a;}
+  .gc-row{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid rgba(42,58,88,.35);}
+  .gc-row:last-child{border-bottom:none;}
+  .gc-rank{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;}
+  .gc-name{flex:1;}
+  .gc-name strong{font-size:14px;}
+  .gc-name small{display:block;font-size:11px;color:var(--muted);}
+  .gc-gap{font-size:13px;font-weight:700;white-space:nowrap;}
+  .rider-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px;}
+  .r-card{background:var(--card);border-radius:11px;padding:18px;border:1px solid var(--border);transition:border-color .2s;}
+  .r-card:hover{border-color:var(--pink);}
+  .r-hd{display:flex;align-items:center;gap:11px;margin-bottom:13px;}
+  .r-av{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+  .r-name{font-size:14px;font-weight:700;}
+  .r-team{font-size:11px;color:var(--muted);margin-top:2px;}
+  .r-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;}
+  .r-stat{background:var(--dark2);border-radius:7px;padding:7px 9px;}
+  .r-stat-l{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
+  .r-stat-v{font-size:13px;font-weight:700;margin-top:2px;}
+  .r-tours{margin-top:10px;padding-top:10px;border-top:1px solid var(--border);font-size:12px;}
+  .r-tours-l{font-size:10px;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px;}
+  .note{background:rgba(155,31,232,.1);border:1px solid rgba(155,31,232,.3);border-radius:7px;padding:9px 13px;font-size:12px;color:#bf7aff;margin-bottom:18px;}
+  .filter-bar{background:var(--card);border-radius:9px;padding:14px 18px;border:1px solid var(--border);margin-bottom:18px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;}
+  .filter-bar label{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;}
+  .filter-bar select,.filter-bar input{background:var(--dark2);border:1px solid var(--border);border-radius:7px;color:var(--text);padding:7px 10px;font-size:12px;}
+  .filter-bar select:focus,.filter-bar input:focus{outline:none;border-color:var(--pink);}
+  .tw{overflow-x:auto;}
+  .section-title{font-size:17px;font-weight:800;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+  .section-title::after{content:'';flex:1;height:1px;background:var(--border);}
+  .est{font-size:9px;color:var(--muted);font-style:italic;vertical-align:super;}
+  .loading{text-align:center;padding:60px;color:var(--muted);font-size:16px;}
+  .wp-box{background:var(--dark2);border:1px solid var(--border);border-radius:8px;padding:16px;font-family:monospace;font-size:13px;white-space:pre-wrap;word-break:break-all;color:#a8d8a0;max-height:300px;overflow-y:auto;}
+  @media(max-width:768px){.g4{grid-template-columns:repeat(2,1fr);}.g2,.g3{grid-template-columns:1fr;}.content{padding:14px;}}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-logo">🚴</div>
+  <div>
+    <h1>Giro d'Italia 2026</h1>
+    <p>109th Edition · 8–31 May 2026 · 3,468 km · Dr Marco Cardinale</p>
+  </div>
+  <div class="header-right">
+    <div class="live-badge" id="stageBadge">Loading…</div>
+    <div class="updated" id="lastUpdated"></div>
+  </div>
+</div>
+
+<div class="nav">
+  <div class="tab active" onclick="showPage('overview',this)">📊 Overview</div>
+  <div class="tab" onclick="showPage('stages',this)">🏁 Stages</div>
+  <div class="tab" onclick="showPage('gc',this)">🌸 GC Evolution</div>
+  <div class="tab" onclick="showPage('points',this)">💜 Points</div>
+  <div class="tab" onclick="showPage('riders',this)">👤 Riders</div>
+  <div class="tab" onclick="showPage('power',this)">⚡ Power (Est.)</div>
+  <div class="tab" onclick="showPage('wordpress',this)">📝 WordPress</div>
+</div>
+
+<div class="content">
+  <div id="page-overview" class="page active"><div class="loading">⏳ Loading race data…</div></div>
+  <div id="page-stages"   class="page"><div class="loading">⏳ Loading…</div></div>
+  <div id="page-gc"       class="page"><div class="loading">⏳ Loading…</div></div>
+  <div id="page-points"   class="page"><div class="loading">⏳ Loading…</div></div>
+  <div id="page-riders"   class="page"><div class="loading">⏳ Loading…</div></div>
+  <div id="page-power"    class="page"><div class="loading">⏳ Loading…</div></div>
+  <div id="page-wordpress"class="page"><div class="loading">⏳ Loading…</div></div>
+</div>
+
+<script>
+let D = null; // global data
+let charts = {};
+
+// ── NAV ──────────────────────────────────────────────
+function showPage(id, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  if (el) el.classList.add('active');
+  renderPage(id);
+}
+
+// ── LOAD DATA ─────────────────────────────────────────
+async function loadData() {
+  try {
+    const res = await fetch('data.json?v=' + Date.now());
+    D = await res.json();
+    document.getElementById('stageBadge').textContent =
+      `Stage ${D.race.completedStages} of ${D.race.totalStages} Complete`;
+    document.getElementById('lastUpdated').textContent =
+      `Last updated: ${D.race.lastUpdated}`;
+    renderPage('overview');
+  } catch(e) {
+    document.getElementById('page-overview').innerHTML =
+      `<div class="loading" style="color:#e8185d">❌ Could not load data.json<br><small>${e}</small></div>`;
+  }
+}
+
+// ── RENDER DISPATCH ───────────────────────────────────
+const rendered = new Set();
+function renderPage(id) {
+  if (!D) return;
+  if (rendered.has(id)) return;
+  rendered.add(id);
+  const fn = { overview:renderOverview, stages:renderStages, gc:renderGC,
+                points:renderPoints, riders:renderRiders, power:renderPower,
+                wordpress:renderWordPress }[id];
+  if (fn) fn();
+}
+
+// ── HELPERS ───────────────────────────────────────────
+const TYPE_CLASS = {sprint:'t-sprint',mountain:'t-mountain',tt:'t-tt',hilly:'t-hilly'};
+const COLORS = ['#e8185d','#3498db','#9b59b6','#2ecc71','#e67e22','#1abc9c','#f39c12','#e74c3c','#16a085','#8e44ad'];
+function stTypeBadge(t) { return `<span class="sttype ${TYPE_CLASS[t]||''}">${(t||'').toUpperCase()}</span>`; }
+function fmtGap(s) { if(!s) return '—'; if(s===0||s==='Leader') return '<span style="color:var(--pink)">Leader</span>'; return s; }
+
+// ── OVERVIEW ─────────────────────────────────────────
+function renderOverview() {
+  const completedStages = D.stages.filter(s => s.winner);
+  const teams = {};
+  completedStages.forEach(s => { if(s.winTeam) teams[s.winTeam] = (teams[s.winTeam]||0)+1; });
+  const sorted = Object.entries(teams).sort((a,b)=>b[1]-a[1]);
+
+  document.getElementById('page-overview').innerHTML = `
+    <div class="g4">
+      <div class="kpi" style="--ac:var(--pink)"><div class="kpi-ico">🌸</div>
+        <div class="kpi-label">GC Leader</div>
+        <div class="kpi-val" style="font-size:20px">${D.gcLeader.name}</div>
+        <div class="kpi-sub">${D.gcLeader.flag} ${D.gcLeader.team}</div>
+      </div>
+      <div class="kpi" style="--ac:var(--purple)"><div class="kpi-ico">💜</div>
+        <div class="kpi-label">Points Leader</div>
+        <div class="kpi-val" style="font-size:20px">${D.pointsLeader.name}</div>
+        <div class="kpi-sub">${D.pointsLeader.flag} ${D.pointsLeader.team}</div>
+      </div>
+      <div class="kpi" style="--ac:var(--blue)"><div class="kpi-ico">🏁</div>
+        <div class="kpi-label">Stages Complete</div>
+        <div class="kpi-val">${D.race.completedStages} / ${D.race.totalStages}</div>
+        <div class="kpi-sub">${D.race.totalStages - D.race.completedStages} remaining</div>
+      </div>
+      <div class="kpi" style="--ac:var(--green)"><div class="kpi-ico">🏆</div>
+        <div class="kpi-label">Stage Winners</div>
+        <div class="kpi-val">${Object.keys(teams).length} teams</div>
+        <div class="kpi-sub">${completedStages.length} stages raced</div>
+      </div>
+    </div>
+
+    <div class="g2">
+      <div class="card">
+        <h3>🌸 GC Top 10 — After Stage ${D.race.completedStages}</h3>
+        <div class="sub">General classification standings</div>
+        ${D.gc.map((r,i)=>`
+          <div class="gc-row">
+            <div class="gc-rank" style="background:${i===0?'var(--pink)':'var(--dark2)'};color:${i===0?'#fff':'var(--text)'};">${r.pos}</div>
+            <div class="gc-name">
+              <strong>${r.nat} ${r.rider}</strong>
+              <small>${r.team}</small>
+            </div>
+            <div class="gc-gap">${r.timeGap==='Leader'?'<span style="color:var(--pink)">Leader</span>':r.timeGap}</div>
+          </div>`).join('')}
+      </div>
+      <div class="card">
+        <h3>🏆 Stage Wins by Team</h3>
+        <div class="sub">All ${D.race.completedStages} completed stages</div>
+        <canvas id="teamWinsChart" height="260"></canvas>
+      </div>
+    </div>
+
+    <div class="section-title">All Stages at a Glance</div>
+    <div class="card"><div class="tw">
+      <table>
+        <thead><tr><th>#</th><th>Date</th><th>Route</th><th>Type</th><th>km</th><th>Winner</th><th>GC Leader</th></tr></thead>
+        <tbody>${D.stages.map(s=>`
+          <tr>
+            <td><strong>${s.n}</strong></td>
+            <td style="color:var(--muted);font-size:12px">${s.date.slice(5)}</td>
+            <td>${s.start} → ${s.end}</td>
+            <td>${stTypeBadge(s.type)}</td>
+            <td style="color:var(--muted)">${s.dist||'—'}</td>
+            <td>${s.winner ? `<strong>${s.winner}</strong>` : '<span style="color:var(--muted)">TBC</span>'}</td>
+            <td>${s.gcLeader ? `<span class="badge b-pink">${s.gcLeader}</span>` : '—'}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div></div>
+  `;
+
+  // Team wins chart
+  setTimeout(()=>{
+    const ctx = document.getElementById('teamWinsChart');
+    if(!ctx) return;
+    charts.teamWins = new Chart(ctx, {
+      type:'bar',
+      data:{
+        labels: sorted.map(t=>t[0].replace('Visma | Lease a Bike','Visma').replace('Soudal Quick-Step','Soudal QS').replace('UAE Team Emirates XRG','UAE').replace('Netcompany Ineos','Ineos').replace('EF Education-EasyPost','EF').replace('Red Bull-BORA-Hansgrohe','Red Bull')),
+        datasets:[{label:'Wins',data:sorted.map(t=>t[1]),backgroundColor:COLORS,borderRadius:5}]
+      },
+      options:{plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#8892a4',font:{size:10}},grid:{color:'rgba(42,58,88,.3)'}},y:{ticks:{color:'#8892a4',stepSize:1},grid:{color:'rgba(42,58,88,.3)'}}}}
+    });
+  }, 50);
+}
+
+// ── STAGES ────────────────────────────────────────────
+function renderStages() {
+  const opts = D.stages.filter(s=>s.winner).map(s=>`<option value="${s.n}">Stage ${s.n} — ${s.start} › ${s.end} (${s.type})</option>`).join('');
+  document.getElementById('page-stages').innerHTML = `
+    <div class="filter-bar">
+      <label>Select Stage</label>
+      <select id="stgSel" onchange="renderStageDetail()">${opts}</select>
+    </div>
+    <div id="stgDetail"></div>
+  `;
+  renderStageDetail();
+}
+function renderStageDetail() {
+  const n = parseInt(document.getElementById('stgSel').value);
+  const s = D.stages.find(x=>x.n===n);
+  document.getElementById('stgDetail').innerHTML = `
+    <div class="g4">
+      <div class="kpi" style="--ac:var(--pink)"><div class="kpi-label">Winner</div><div class="kpi-val" style="font-size:18px">${s.winner||'TBC'}</div><div class="kpi-sub">${s.winTeam||''}</div></div>
+      <div class="kpi" style="--ac:var(--blue)"><div class="kpi-label">Route</div><div class="kpi-val" style="font-size:14px">${s.start} → ${s.end}</div><div class="kpi-sub">${s.dist||'?'} km · ${stTypeBadge(s.type)}</div></div>
+      <div class="kpi" style="--ac:var(--green)"><div class="kpi-label">GC Leader After</div><div class="kpi-val" style="font-size:18px">${s.gcLeader||'?'}</div></div>
+      <div class="kpi" style="--ac:var(--orange)"><div class="kpi-label">Avg Speed</div><div class="kpi-val">${s.avgSpeed ? s.avgSpeed+' km/h' : '—'}</div></div>
+    </div>
+    <div class="card"><p style="color:var(--muted);font-size:13px">Full top-10 breakdowns for all stages are available in the live data. Stage reports appear as race progresses.</p></div>
+  `;
+}
+
+// ── GC EVOLUTION ─────────────────────────────────────
+function renderGC() {
+  document.getElementById('page-gc').innerHTML = `
+    <div class="section-title">GC Gap Evolution — Stages 1–${D.race.completedStages}</div>
+    <div class="note">Gap in seconds behind race leader. Zero = leader. Gaps grow as Vingegaard extends dominance in mountains.</div>
+    <div class="card" style="margin-bottom:20px">
+      <h3>Time Gap to Leader (Top 5 GC)</h3><div class="sub">Seconds behind — computed from known GC after mountain stages</div>
+      <canvas id="gcEvoChart" height="320"></canvas>
+    </div>
+    <div class="g2">
+      <div class="card">
+        <h3>🌸 Jersey History</h3><div class="sub">Who wore the Maglia Rosa after each stage</div>
+        <div class="tw"><table>
+          <thead><tr><th>Stage</th><th>Date</th><th>Leader</th></tr></thead>
+          <tbody>${buildJerseyHistory()}</tbody>
+        </table></div>
+      </div>
+      <div class="card">
+        <h3>Gap After Stage ${D.race.completedStages}</h3><div class="sub">Seconds behind Vingegaard</div>
+        <canvas id="gcBarChart" height="280"></canvas>
+      </div>
+    </div>
+  `;
+  setTimeout(()=>{
+    // GC evolution approximation
+    const stageLabels = D.stages.filter(s=>s.winner).map(s=>`S${s.n}`);
+    const gcEvoDatasets = [
+      {label:'Felix Gall',       data:[...Array(13).fill(null),170,170,200,240,243], color:'#3498db'},
+      {label:'Thymen Arensman',  data:[...Array(13).fill(null),183,183,220,265,267], color:'#9b59b6'},
+      {label:'Jai Hindley',      data:[...Array(13).fill(null),223,223,270,295,300], color:'#f39c12'},
+      {label:'Afonso Eulálio',   data:[...Array(4).fill(null),0,0,0,0,0,0,0,0,0,146,146,290,320,340], color:'#2ecc71'},
+    ].map(d=>({label:d.label,data:d.data.slice(0,stageLabels.length).map(v=>v===null?null:-v),borderColor:d.color,backgroundColor:'transparent',tension:.3,pointRadius:3,spanGaps:false,borderWidth:2}));
+
+    new Chart(document.getElementById('gcEvoChart'),{
+      type:'line',data:{labels:stageLabels,datasets:gcEvoDatasets},
+      options:{plugins:{legend:{labels:{color:'#e8eaf0',font:{size:11}}}},scales:{x:{ticks:{color:'#8892a4'},grid:{color:'rgba(42,58,88,.3)'}},y:{ticks:{color:'#8892a4',callback:v=>`${Math.abs(v)}s`},grid:{color:'rgba(42,58,88,.3)'}}},interaction:{mode:'index',intersect:false}}
+    });
+
+    // Bar chart
+    const gcBar = D.gc.slice(1).map(r=>({name:r.rider.split(' ').slice(-1)[0],gap:r.timeGapSec}));
+    new Chart(document.getElementById('gcBarChart'),{
+      type:'bar',data:{labels:gcBar.map(r=>r.name),datasets:[{label:'Gap (s)',data:gcBar.map(r=>r.gap),backgroundColor:'rgba(24,100,232,.7)',borderRadius:5}]},
+      options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#8892a4',callback:v=>`${v}s`},grid:{color:'rgba(42,58,88,.3)'}},y:{ticks:{color:'#8892a4',font:{size:11}},grid:{display:false}}}}
+    });
+  }, 50);
+}
+
+function buildJerseyHistory() {
+  const map = {Magnier:'Magnier',Silva:'G.T. Silva',Ciccone:'Ciccone',Eulálio:'Eulálio',Vingegaard:'Vingegaard'};
+  return D.stages.filter(s=>s.gcLeader).map(s=>`
+    <tr>
+      <td><strong>S${s.n}</strong></td>
+      <td style="color:var(--muted);font-size:11px">${s.date.slice(5)}</td>
+      <td><span class="badge b-pink">🌸 ${s.gcLeader}</span></td>
+    </tr>`).join('');
+}
+
+// ── POINTS ────────────────────────────────────────────
+function renderPoints() {
+  const magPoints = [50,68,118,126,140,158,168,180,215,228,228,240,252,252,302,318,330,380];
+  const narPoints = [0,4,4,15,32,44,44,68,68,68,93,105,110,111,111,120,131,131];
+  const labels = D.stages.filter(s=>s.winner).map(s=>`S${s.n}`);
+
+  document.getElementById('page-points').innerHTML = `
+    <div class="g3">
+      <div class="kpi" style="--ac:var(--purple)"><div class="kpi-ico">💜</div><div class="kpi-label">Current Leader</div><div class="kpi-val" style="font-size:18px">${D.pointsLeader.name}</div><div class="kpi-sub">3 stage wins · Hat-trick</div></div>
+      <div class="kpi" style="--ac:var(--orange)"><div class="kpi-ico">🇪🇨</div><div class="kpi-label">Closest Rival</div><div class="kpi-val" style="font-size:18px">Narváez</div><div class="kpi-sub">UAE Emirates · Led S14 & S17</div></div>
+      <div class="kpi" style="--ac:var(--blue)"><div class="kpi-ico">🔄</div><div class="kpi-label">Jersey Changes</div><div class="kpi-val">4</div><div class="kpi-sub">Most contested in years</div></div>
+    </div>
+    <div class="card" style="margin-bottom:20px">
+      <h3>💜 Magnier vs Narváez — Points Battle</h3><div class="sub">Estimated cumulative points across all stages</div>
+      <canvas id="pointsChart" height="260"></canvas>
+    </div>
+    <div class="card">
+      <h3>Points Jersey — Stage by Stage</h3><div class="sub">Who held the Maglia Ciclamino</div>
+      <div class="tw"><table>
+        <thead><tr><th>Stage</th><th>Date</th><th>Leader</th><th>Key Event</th></tr></thead>
+        <tbody>${D.pointsJersey.map(p=>`
+          <tr>
+            <td><strong>S${p.stage}</strong></td>
+            <td style="color:var(--muted);font-size:11px">${D.stages[p.stage-1]?.date?.slice(5)||''}</td>
+            <td><span class="badge b-purple">💜 ${p.leader}</span></td>
+            <td style="font-size:12px;color:${p.event.startsWith('⚡')?'#ffaa5a':'var(--muted)'}">${p.event}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table></div>
+    </div>
+  `;
+  setTimeout(()=>{
+    new Chart(document.getElementById('pointsChart'),{
+      type:'line',data:{labels:labels.slice(0,magPoints.length),datasets:[
+        {label:'Paul Magnier',data:magPoints.slice(0,labels.length),borderColor:'#9b1fe8',backgroundColor:'rgba(155,31,232,.1)',tension:.2,fill:true,pointRadius:3},
+        {label:'Jhonatan Narváez',data:narPoints.slice(0,labels.length),borderColor:'#e87018',backgroundColor:'transparent',tension:.2,pointRadius:3},
+      ]},
+      options:{plugins:{legend:{labels:{color:'#e8eaf0'}}},scales:{x:{ticks:{color:'#8892a4'},grid:{color:'rgba(42,58,88,.3)'}},y:{ticks:{color:'#8892a4'},grid:{color:'rgba(42,58,88,.3)'},title:{display:true,text:'Est. Points',color:'#8892a4'}}},interaction:{mode:'index',intersect:false}}
+    });
+  }, 50);
+}
+
+// ── RIDERS ────────────────────────────────────────────
+function renderRiders() {
+  document.getElementById('page-riders').innerHTML = `
+    <div class="filter-bar">
+      <label>Search</label>
+      <input type="text" id="rSearch" placeholder="Rider name…" oninput="filterRiders()" style="width:180px">
+      <label>Role</label>
+      <select id="rRole" onchange="filterRiders()">
+        <option value="">All</option>
+        <option>GC Climber</option><option>Sprinter</option><option>Puncher</option>
+        <option>TT Specialist</option><option>GC Support</option><option>GC Veteran</option><option>GC All-rounder</option>
+      </select>
+    </div>
+    <div class="rider-grid" id="rGrid">${buildRiderCards(D.riders)}</div>
+  `;
+}
+function filterRiders() {
+  const s = document.getElementById('rSearch').value.toLowerCase();
+  const r = document.getElementById('rRole').value;
+  const filtered = D.riders.filter(x => (!s || x.name.toLowerCase().includes(s)) && (!r || x.role===r));
+  document.getElementById('rGrid').innerHTML = buildRiderCards(filtered);
+}
+function buildRiderCards(list) {
+  return list.map((r,i)=>`
+    <div class="r-card">
+      <div class="r-hd">
+        <div class="r-av" style="background:${COLORS[i%COLORS.length]}22;color:${COLORS[i%COLORS.length]}">${r.flag}</div>
+        <div>
+          <div class="r-name">${r.name}</div>
+          <div class="r-team">${r.team}</div>
+          <span class="badge b-gray" style="margin-top:3px;display:inline-block">${r.role}</span>
+        </div>
+      </div>
+      <div class="r-stats">
+        <div class="r-stat"><div class="r-stat-l">Age</div><div class="r-stat-v">${r.age}</div></div>
+        <div class="r-stat"><div class="r-stat-l">Height</div><div class="r-stat-v">${r.height}</div></div>
+        <div class="r-stat"><div class="r-stat-l">Weight</div><div class="r-stat-v">${r.weight}</div></div>
+      </div>
+      ${r.gcPos ? `<div style="margin-top:8px"><span class="badge b-pink">GC #${r.gcPos}</span></div>` : ''}
+      ${r.stageWins ? `<div style="margin-top:6px"><span class="badge b-green">🏁 ${r.stageWins} win${r.stageWins>1?'s':''}</span></div>` : ''}
+      <div class="r-tours">
+        <div class="r-tours-l">Grand Tour Experience</div>
+        ${r.tourExp.TdF?`<div style="margin-bottom:3px"><strong style="color:var(--text)">TdF:</strong> <span style="color:var(--muted)">${r.tourExp.TdF}</span></div>`:''}
+        ${r.tourExp.Giro?`<div style="margin-bottom:3px"><strong style="color:var(--pink)">Giro:</strong> <span style="color:var(--muted)">${r.tourExp.Giro}</span></div>`:''}
+        ${r.tourExp.Vuelta?`<div><strong style="color:var(--orange)">Vuelta:</strong> <span style="color:var(--muted)">${r.tourExp.Vuelta}</span></div>`:''}
+      </div>
+      <div style="margin-top:10px;font-size:11px;color:var(--muted);font-style:italic">${r.bio}</div>
+    </div>`).join('') || '<p style="color:var(--muted)">No riders match.</p>';
+}
+
+// ── POWER ─────────────────────────────────────────────
+function renderPower() {
+  const stageF = ()=>document.getElementById('pwStage').value;
+  const riderF = ()=>document.getElementById('pwRider').value;
+  const riders = [...new Set(D.estimatedPower.map(d=>d.rider))].sort();
+  document.getElementById('page-power').innerHTML = `
+    <div class="note">⚡ Power values are <strong>estimates</strong> computed from stage time, distance, elevation and rider weight using VAM and speed-power models. Not telemetry data.</div>
+    <div class="g4">
+      <div class="kpi" style="--ac:var(--green)"><div class="kpi-label">Avg Power Mountains</div><div class="kpi-val">~330W</div><div class="kpi-sub">Est. stage winner on key climbs</div></div>
+      <div class="kpi" style="--ac:var(--blue)"><div class="kpi-label">ITT — Ganna (S10)</div><div class="kpi-val">~420W</div><div class="kpi-sub">From stage time & distance</div></div>
+      <div class="kpi" style="--ac:var(--pink)"><div class="kpi-label">Sprint Peak</div><div class="kpi-val">~1,380W</div><div class="kpi-sub">Magnier sprint finish estimate</div></div>
+      <div class="kpi" style="--ac:var(--orange)"><div class="kpi-label">Vingegaard w/kg (Pila)</div><div class="kpi-val">~6.8 W/kg</div><div class="kpi-sub">Final 4.6 km of Stage 14</div></div>
+    </div>
+    <div class="filter-bar">
+      <label>Stage Type</label>
+      <select id="pwStage" onchange="filterPower()">
+        <option value="">All</option><option value="sprint">Sprint</option><option value="mountain">Mountain</option><option value="tt">TT</option><option value="hilly">Hilly</option>
+      </select>
+      <label>Rider</label>
+      <select id="pwRider" onchange="filterPower()">
+        <option value="">All</option>
+        ${riders.map(r=>`<option>${r}</option>`).join('')}
+      </select>
+    </div>
+    <div class="card" style="margin-bottom:20px">
+      <h3>Avg Power by Stage Type & Rider Category</h3><div class="sub">Comparison across sprint, mountain, TT and hilly stages</div>
+      <canvas id="pwCompChart" height="280"></canvas>
+    </div>
+    <div class="card"><div class="tw">
+      <table id="pwTable">
+        <thead><tr><th>Stage</th><th>Type</th><th>Rider</th><th>Role</th><th>Avg Power</th><th>Peak Power</th><th>Avg Speed</th><th>W/kg</th></tr></thead>
+        <tbody id="pwBody">${buildPowerRows(D.estimatedPower)}</tbody>
+      </table>
+    </div></div>
+  `;
+  setTimeout(()=>{
+    new Chart(document.getElementById('pwCompChart'),{
+      type:'bar',
+      data:{
+        labels:['Sprint avg','Sprint peak','Mountain avg','Mountain peak','ITT avg','Hilly avg'],
+        datasets:[
+          {label:'Sprinters',  data:[262,1360,230,820,360,null],backgroundColor:'rgba(232,24,93,.7)',borderRadius:4},
+          {label:'GC Climbers',data:[240,850,320,490,385,275],backgroundColor:'rgba(24,100,232,.7)',borderRadius:4},
+          {label:'TT Spec.',   data:[255,950,280,430,420,280],backgroundColor:'rgba(24,168,107,.7)',borderRadius:4},
+        ]
+      },
+      options:{plugins:{legend:{labels:{color:'#e8eaf0'}}},scales:{x:{ticks:{color:'#8892a4',font:{size:11}},grid:{color:'rgba(42,58,88,.3)'}},y:{ticks:{color:'#8892a4',callback:v=>`${v}W`},grid:{color:'rgba(42,58,88,.3)'}}}}
+    });
+  }, 50);
+}
+function filterPower() {
+  const sf = document.getElementById('pwStage').value;
+  const rf = document.getElementById('pwRider').value;
+  const filtered = D.estimatedPower.filter(d=>(!sf||d.stageType===sf)&&(!rf||d.rider===rf));
+  document.getElementById('pwBody').innerHTML = buildPowerRows(filtered);
+}
+function buildPowerRows(list) {
+  return list.map(d=>`
+    <tr>
+      <td><strong>S${d.stage}</strong></td>
+      <td>${stTypeBadge(d.stageType)}</td>
+      <td>${d.rider}</td>
+      <td style="color:var(--muted)">${d.role}</td>
+      <td><strong style="color:${d.avgW>350?'#5de0a0':d.avgW>280?'#7ab4ff':'inherit'}">${d.avgW}W</strong><span class="est">est</span></td>
+      <td><strong style="color:${d.peakW>1200?'#5de0a0':'inherit'}">${d.peakW}W</strong><span class="est">est</span></td>
+      <td>${d.speed} km/h<span class="est">est</span></td>
+      <td>${d.wkg?`<strong>${d.wkg}</strong> W/kg<span class="est">est</span>`:'—'}</td>
+    </tr>`).join('');
+}
+
+// ── WORDPRESS ─────────────────────────────────────────
+function renderWordPress() {
+  const gc = D.gc;
+  const pts = D.pointsLeader;
+  const completed = D.race.completedStages;
+  const stage = D.stages.find(s=>s.n===completed);
+  const iframeSrc = `https://drmarcocardinale-hub.github.io/giro2026/`;
+
+  const iframeCode = `<!-- Giro 2026 Dashboard — embed in any WordPress post/page -->
+<iframe
+  src="${iframeSrc}"
+  width="100%"
+  height="900"
+  style="border:none;border-radius:12px;"
+  loading="lazy"
+  title="Giro d'Italia 2026 Dashboard">
+</iframe>`;
+
+  const blogPost = `## 🚴 Giro d'Italia 2026 — Stage ${completed} Update
+
+**Stage ${completed}:** ${stage?.start} → ${stage?.end}
+**Winner:** ${stage?.winner||'TBC'} (${stage?.winTeam||''})
+
+### 🌸 General Classification
+| Pos | Rider | Team | Gap |
+|-----|-------|------|-----|
+${gc.slice(0,5).map(r=>`| ${r.pos} | **${r.rider}** ${r.nat} | ${r.team} | ${r.timeGap} |`).join('\n')}
+
+### 💜 Points Classification
+**Leader: ${pts.name}** (${pts.flag} ${pts.team})
+
+📊 [View the full interactive dashboard →](${iframeSrc})
+
+*Power estimates are modelled values, not telemetry. Dashboard updated automatically each evening.*`;
+
+  document.getElementById('page-wordpress').innerHTML = `
+    <div class="section-title">WordPress Integration</div>
+
+    <div class="g2" style="margin-bottom:24px">
+      <div class="card">
+        <h3>📋 Option 1 — Embed iframe in any post/page</h3>
+        <div class="sub">Copy this HTML block into a WordPress "Custom HTML" block</div>
+        <div class="wp-box">${iframeCode.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+        <button onclick="copyText('${iframeCode.replace(/'/g,"\\'")}','btn1')" id="btn1"
+          style="margin-top:12px;background:var(--pink);color:#fff;border:none;border-radius:7px;padding:8px 18px;cursor:pointer;font-weight:700;font-size:13px">
+          📋 Copy iframe code
+        </button>
+      </div>
+
+      <div class="card">
+        <h3>📝 Option 2 — Daily blog post snippet</h3>
+        <div class="sub">Copy into a new WordPress post (auto-generated from live data)</div>
+        <div class="wp-box">${blogPost.replace(/</g,'&lt;')}</div>
+        <button onclick="copyText(\`${blogPost.replace(/`/g,'\\`').replace(/'/g,"\\'")}}\`,'btn2')" id="btn2"
+          style="margin-top:12px;background:var(--purple);color:#fff;border:none;border-radius:7px;padding:8px 18px;cursor:pointer;font-weight:700;font-size:13px">
+          📋 Copy blog snippet
+        </button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>🔗 Your Dashboard URL</h3>
+      <div class="sub">Use this URL to link from WordPress, social media, or anywhere</div>
+      <div class="wp-box" style="font-size:16px;padding:18px">${iframeSrc}</div>
+      <p style="font-size:12px;color:var(--muted);margin-top:12px">
+        ℹ️ This URL goes live once you push the repository to GitHub and enable GitHub Pages
+        (Settings → Pages → Source: main branch / root).
+      </p>
+    </div>
+  `;
+}
+function copyText(text, btnId) {
+  navigator.clipboard.writeText(text).then(()=>{
+    const btn = document.getElementById(btnId);
+    if(btn){ btn.textContent='✅ Copied!'; setTimeout(()=>btn.textContent=btn.textContent.replace('✅ Copied!','📋 Copy'),2000); }
+  });
+}
+
+// ── BOOT ─────────────────────────────────────────────
+loadData();
+</script>
+</body>
+</html>

@@ -1,0 +1,48 @@
+name: 🚴 Daily Giro Data Update
+
+on:
+  schedule:
+    # Runs every day at 20:00 UTC (22:00 CET) during the race
+    - cron: '0 20 * * *'
+  # Also allow manual trigger from GitHub Actions tab
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-data:
+    name: Scrape & update race data
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run scraper
+        run: python scraper.py
+
+      - name: Check for changes
+        id: changes
+        run: |
+          git diff --quiet data.json blog-snippet.md || echo "changed=true" >> $GITHUB_OUTPUT
+
+      - name: Commit and push if data changed
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          git config user.name  "Giro Bot 🚴"
+          git config user.email "actions@github.com"
+          git add data.json blog-snippet.md
+          git commit -m "🚴 Auto-update: Stage data $(date +'%Y-%m-%d %H:%M UTC')"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: No changes
+        if: steps.changes.outputs.changed != 'true'
+        run: echo "ℹ️ No new race data — nothing committed"
