@@ -131,6 +131,7 @@ tr:last-child td{border-bottom:none;}
 
 <script>
 let D=null;
+let RIDERS=[];
 const COLORS=['#e8185d','#3498db','#9b59b6','#2ecc71','#e67e22','#1abc9c','#f39c12','#e74c3c','#16a085','#8e44ad','#2980b9','#27ae60','#d35400','#c0392b','#7f8c8d'];
 const TYPE_CLS={sprint:'t-sprint',mountain:'t-mountain',tt:'t-tt',hilly:'t-hilly'};
 let charts={};
@@ -148,13 +149,17 @@ function showPage(id,el){
 // ── LOAD ──
 async function loadData(){
   try{
-    const r=await fetch('data.json?v='+Date.now());
-    D=await r.json();
+    const [raceRes, ridersRes] = await Promise.all([
+      fetch('data.json?v='+Date.now()),
+      fetch('riders.json?v='+Date.now())
+    ]);
+    D=await raceRes.json();
+    RIDERS=await ridersRes.json();
     document.getElementById('stageBadge').textContent=`Stage ${D.race.completedStages} of ${D.race.totalStages} Complete`;
     document.getElementById('lastUpdated').textContent=`Updated: ${D.race.lastUpdated}`;
     renderOverview();
   }catch(e){
-    document.getElementById('page-overview').innerHTML=`<div class="loading" style="color:var(--pk)">❌ Could not load data.json<br><small>${e}</small></div>`;
+    document.getElementById('page-overview').innerHTML=`<div class="loading" style="color:var(--pk)">❌ Could not load data<br><small>${e}</small></div>`;
   }
 }
 
@@ -400,12 +405,34 @@ function buildPointsChart(){
 
 // ── RIDERS with PHOTOS ──
 function renderRiders(){
+  const teams=[...new Set(RIDERS.map(r=>r.team))].sort();
   document.getElementById('page-riders').innerHTML=`
+    <div style="display:flex;gap:12px;margin-bottom:8px;font-size:13px;color:var(--mu)">
+      <span>📋 <strong style="color:var(--tx)">${RIDERS.length}</strong> total starters</span>
+      <span>✅ <strong style="color:#5de0a0">${RIDERS.filter(r=>!r.withdrawn).length}</strong> still racing</span>
+      <span>❌ <strong style="color:var(--pk)">${RIDERS.filter(r=>r.withdrawn).length}</strong> withdrawn</span>
+    </div>
     <div class="filter-bar">
-      <label>Search</label><input type="text" id="rSearch" placeholder="Rider name…" oninput="filterRiders()" style="width:170px">
+      <label>Search</label>
+      <input type="text" id="rSearch" placeholder="Rider name…" oninput="filterRiders()" style="width:160px">
+      <label>Team</label>
+      <select id="rTeam" onchange="filterRiders()">
+        <option value="">All teams</option>
+        ${teams.map(t=>`<option>${t}</option>`).join('')}
+      </select>
       <label>Role</label>
       <select id="rRole" onchange="filterRiders()">
-        <option value="">All</option><option>GC Climber</option><option>Sprinter</option><option>Puncher</option><option>TT Specialist</option><option>GC Support</option><option>GC Veteran</option><option>GC All-rounder</option><option>Climber / KOM</option><option>Climber / GC</option><option>Climber / Support</option>
+        <option value="">All roles</option>
+        <option>GC Climber</option><option>Sprinter</option><option>Puncher</option>
+        <option>Climber</option><option>TT Specialist</option><option>GC Support</option>
+        <option>GC Veteran</option><option>GC All-rounder</option><option>Breakaway</option>
+        <option>Rouleur</option><option>All-rounder</option><option>Classics</option>
+      </select>
+      <label>Show</label>
+      <select id="rStatus" onchange="filterRiders()">
+        <option value="all">All riders</option>
+        <option value="active">Active only</option>
+        <option value="withdrawn">Withdrawn only</option>
       </select>
     </div>
     <div class="rider-grid" id="rGrid"></div>
@@ -415,20 +442,31 @@ function renderRiders(){
 }
 function filterRiders(){
   const s=(document.getElementById('rSearch').value||'').toLowerCase();
+  const tm=document.getElementById('rTeam').value;
   const r=document.getElementById('rRole').value;
-  const filtered=D.riders.filter(x=>(!s||x.name.toLowerCase().includes(s))&&(!r||x.role===r));
+  const st=document.getElementById('rStatus').value;
+  const filtered=RIDERS.filter(x=>{
+    if(s&&!x.name.toLowerCase().includes(s)) return false;
+    if(tm&&x.team!==tm) return false;
+    if(r&&!x.role.includes(r)) return false;
+    if(st==='active'&&x.withdrawn) return false;
+    if(st==='withdrawn'&&!x.withdrawn) return false;
+    return true;
+  }).sort((a,b)=>a.bib-b.bib);
   document.getElementById('rGrid').innerHTML=buildRiderCards(filtered);
   loadRiderPhotos();
 }
 function buildRiderCards(list){
+  if(!list.length) return '<p style="color:var(--mu);padding:20px">No riders match your filters.</p>';
   return list.map((r,i)=>`
-    <div class="r-card">
+    <div class="r-card" style="opacity:${r.withdrawn?0.6:1}">
+      ${r.withdrawn?`<div style="background:rgba(232,24,93,.15);border-radius:6px;padding:3px 8px;font-size:10px;color:var(--pk);font-weight:700;margin-bottom:8px;display:inline-block">❌ WITHDRAWN</div>`:''}
       <div class="r-hd">
-        <div class="r-av" id="av-${r.name.replace(/\s+/g,'-')}" style="background:${COLORS[i%COLORS.length]}33;color:${COLORS[i%COLORS.length]}">${r.flag}</div>
+        <div class="r-av" id="av-${r.bib}" style="background:${COLORS[i%COLORS.length]}33;color:${COLORS[i%COLORS.length]}">${r.flag}</div>
         <div>
           <div class="r-name">${r.name}</div>
-          <div class="r-team">${r.team}</div>
-          <span class="badge b-gy" style="margin-top:3px;display:inline-block">${r.role}</span>
+          <div class="r-team" style="font-size:10px">${r.team}</div>
+          <span class="badge b-gy" style="margin-top:3px;display:inline-block;font-size:9px">${r.role}</span>
         </div>
       </div>
       <div class="r-stats">
@@ -436,31 +474,35 @@ function buildRiderCards(list){
         <div class="r-stat"><div class="r-stat-l">Height</div><div class="r-stat-v">${r.height}</div></div>
         <div class="r-stat"><div class="r-stat-l">Weight</div><div class="r-stat-v">${r.weight}</div></div>
       </div>
-      ${r.gcPos?`<div style="margin-top:7px"><span class="badge b-pk">GC #${r.gcPos}</span></div>`:''}
-      ${r.stageWins?`<div style="margin-top:5px"><span class="badge b-gr">🏁 ${r.stageWins} win${r.stageWins>1?'s':''}</span></div>`:''}
+      <div style="margin-top:6px;display:flex;gap:5px;flex-wrap:wrap">
+        <span class="badge b-gy" style="font-size:9px">Bib ${r.bib}</span>
+        ${r.gcPos?`<span class="badge b-pk">GC #${r.gcPos}</span>`:''}
+        ${r.stageWins?`<span class="badge b-gr">🏁 ${r.stageWins} win${r.stageWins>1?'s':''}</span>`:''}
+      </div>
       <div class="r-tours">
         <div class="r-tours-l">Grand Tour Experience</div>
-        ${r.tourExp.TdF?`<div style="margin-bottom:3px"><strong style="color:var(--tx)">TdF:</strong> <span style="color:var(--mu)">${r.tourExp.TdF}</span></div>`:''}
-        ${r.tourExp.Giro?`<div style="margin-bottom:3px"><strong style="color:var(--pk)">Giro:</strong> <span style="color:var(--mu)">${r.tourExp.Giro}</span></div>`:''}
-        ${r.tourExp.Vuelta?`<div><strong style="color:var(--or)">Vuelta:</strong> <span style="color:var(--mu)">${r.tourExp.Vuelta}</span></div>`:''}
+        ${r.tourExp.TdF&&r.tourExp.TdF!=='—'?`<div style="margin-bottom:2px;font-size:11px"><strong style="color:var(--tx)">TdF:</strong> <span style="color:var(--mu)">${r.tourExp.TdF}</span></div>`:''}
+        ${r.tourExp.Giro?`<div style="margin-bottom:2px;font-size:11px"><strong style="color:var(--pk)">Giro:</strong> <span style="color:var(--mu)">${r.tourExp.Giro}</span></div>`:''}
+        ${r.tourExp.Vuelta&&r.tourExp.Vuelta!=='—'?`<div style="font-size:11px"><strong style="color:var(--or)">Vuelta:</strong> <span style="color:var(--mu)">${r.tourExp.Vuelta}</span></div>`:''}
       </div>
-      <div style="margin-top:9px;font-size:11px;color:var(--mu);font-style:italic">${r.bio}</div>
-    </div>`).join('')||'<p style="color:var(--mu)">No riders match.</p>';
+      <div style="margin-top:8px;font-size:11px;color:var(--mu);font-style:italic">${r.bio}</div>
+    </div>`).join('');
 }
 async function loadRiderPhotos(){
-  for(const r of D.riders){
-    if(!r.wikiSlug) continue;
-    const elId='av-'+r.name.replace(/\s+/g,'-');
-    const el=document.getElementById(elId);
-    if(!el||el.querySelector('img')) continue;
+  const visible=document.querySelectorAll('[id^="av-"]');
+  for(const el of visible){
+    if(el.querySelector('img')) continue;
+    const bib=parseInt(el.id.replace('av-',''));
+    const rider=RIDERS.find(r=>r.bib===bib);
+    if(!rider||!rider.wikiSlug) continue;
     try{
-      const res=await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${r.wikiSlug}`);
+      const res=await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${rider.wikiSlug}`);
       if(!res.ok) continue;
       const data=await res.json();
       if(data.thumbnail&&data.thumbnail.source){
         const img=document.createElement('img');
         img.src=data.thumbnail.source;
-        img.alt=r.name;
+        img.alt=rider.name;
         img.onerror=()=>img.remove();
         el.innerHTML='';
         el.appendChild(img);
