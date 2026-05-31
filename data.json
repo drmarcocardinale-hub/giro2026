@@ -7,7 +7,9 @@
     "totalStages": 21,
     "completedStages": 20,
     "totalDistance": 3468,
-    "lastUpdated": "2026-05-30"
+    "lastUpdated": "2026-05-31",
+    "raceStatus": "LIVE",
+    "raceComplete": false
   },
   "gcLeader": {
     "name": "Jonas Vingegaard",
@@ -167,7 +169,7 @@
        {"pos":10,"rider":"Davide Piganzoli","nat":"🇮🇹","team":"Visma | Lease a Bike","time":"s.t."}
      ],
      "note":"Vingegaard's 5th stage win — attacks with 11km to go on final Piancavallo ascent and solos to commanding victory. GC sealed."},
-    {"n":21, "date":"2026-05-31","start":"Roma","end":"Roma","type":"sprint","dist":null,"winner":null,"winTeam":null,"gcLeader":null,"avgSpeed":null,"top10":[],"note":"Final ceremonial stage into Rome. Vingegaard will take the Maglia Rosa on the podium."}
+    {"n":21, "date":"2026-05-31","start":"Roma","end":"Roma","type":"sprint","dist":131,"winner":null,"winTeam":null,"gcLeader":"Vingegaard","avgSpeed":null,"top10":[],"note":"🔴 LIVE NOW — Ceremonial procession until final 70km, then racing. Expected finish ~18:45 CEST. GC unchanged: Vingegaard 🌸"}
   ],
   "pointsJersey": [
     {"stage":1,  "leader":"Paul Magnier",     "event":"Magnier wins Stage 1 sprint"},

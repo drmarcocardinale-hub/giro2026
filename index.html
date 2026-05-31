@@ -155,7 +155,14 @@ async function loadData(){
     ]);
     D=await raceRes.json();
     RIDERS=await ridersRes.json();
-    document.getElementById('stageBadge').textContent=`Stage ${D.race.completedStages} of ${D.race.totalStages} Complete`;
+    const isLive = D.race.raceStatus === 'LIVE';
+    const isComplete = D.race.raceComplete;
+    document.getElementById('stageBadge').textContent = isComplete
+      ? `🏆 RACE COMPLETE — ${D.race.completedStages} Stages`
+      : isLive
+      ? `🔴 LIVE — Stage 21 Roma · Final stage`
+      : `Stage ${D.race.completedStages} of ${D.race.totalStages} Complete`;
+    document.getElementById('stageBadge').style.background = isLive ? 'rgba(232,24,93,0.4)' : '';
     document.getElementById('lastUpdated').textContent=`Updated: ${D.race.lastUpdated}`;
     renderOverview();
   }catch(e){
