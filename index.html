@@ -160,9 +160,10 @@ async function loadData(){
     document.getElementById('stageBadge').textContent = isComplete
       ? `🏆 RACE COMPLETE — ${D.race.completedStages} Stages`
       : isLive
-      ? `🔴 LIVE — Stage 21 Roma · Final stage`
+      ? `🔴 LIVE — Stage 21 Roma`
       : `Stage ${D.race.completedStages} of ${D.race.totalStages} Complete`;
-    document.getElementById('stageBadge').style.background = isLive ? 'rgba(232,24,93,0.4)' : '';
+    document.getElementById('stageBadge').style.background = isComplete
+      ? 'rgba(24,168,107,0.4)' : isLive ? 'rgba(232,24,93,0.4)' : '';
     document.getElementById('lastUpdated').textContent=`Updated: ${D.race.lastUpdated}`;
     renderOverview();
   }catch(e){
@@ -179,7 +180,20 @@ function renderOverview(){
   const teams={};
   done.forEach(s=>{if(s.winTeam)teams[s.winTeam]=(teams[s.winTeam]||0)+1;});
   const sorted=Object.entries(teams).sort((a,b)=>b[1]-a[1]);
-  document.getElementById('page-overview').innerHTML=`
+  const championBanner = D.race.raceComplete ? `
+    <div style="background:linear-gradient(135deg,rgba(232,24,93,.2),rgba(24,168,107,.2));border:1px solid rgba(24,168,107,.4);border-radius:12px;padding:20px 24px;margin-bottom:20px;display:flex;align-items:center;gap:16px;">
+      <div style="font-size:48px">🏆</div>
+      <div>
+        <div style="font-size:22px;font-weight:800;color:#5de0a0">109th Giro d'Italia — FINAL RESULTS</div>
+        <div style="font-size:14px;color:var(--mu);margin-top:4px">
+          <span style="color:#e8eaf0;font-weight:600">🌸 GC Winner:</span> Jonas Vingegaard (Visma | Lease a Bike) &nbsp;·&nbsp;
+          <span style="color:#e8eaf0;font-weight:600">💜 Points:</span> Paul Magnier (200 pts) &nbsp;·&nbsp;
+          <span style="color:#e8eaf0;font-weight:600">🦅 KOM:</span> Giulio Ciccone &nbsp;·&nbsp;
+          <span style="color:#e8eaf0;font-weight:600">🏁 S21:</span> Jonathan Milan
+        </div>
+      </div>
+    </div>` : '';
+  document.getElementById('page-overview').innerHTML=championBanner+`
     <div class="g4">
       <div class="kpi" style="--ac:var(--pk)"><div class="kpi-ico">🌸</div><div class="kpi-label">GC Leader</div><div class="kpi-val" style="font-size:18px">${D.gcLeader.name}</div><div class="kpi-sub">${D.gcLeader.flag} ${D.gcLeader.team}</div></div>
       <div class="kpi" style="--ac:var(--pu)"><div class="kpi-ico">💜</div><div class="kpi-label">Points Leader</div><div class="kpi-val" style="font-size:18px">${D.pointsLeader.name}</div><div class="kpi-sub">${D.pointsLeader.flag} ${D.pointsLeader.team}</div></div>
@@ -373,6 +387,17 @@ function renderPoints(){
       <div class="sub">Estimated cumulative points — click riders above to compare</div>
       <canvas id="pointsChart" height="280"></canvas>
     </div>
+    ${D.finalPointsClassification ? `
+    <div class="card" style="margin-bottom:18px">
+      <h3>💜 Final Points Classification</h3><div class="sub">Official Maglia Ciclamino standings — all 21 stages</div>
+      <div class="tw"><table><thead><tr><th>Pos</th><th>Rider</th><th>Team</th><th>Points</th></tr></thead>
+      <tbody>${D.finalPointsClassification.map(r=>`<tr>
+        <td><strong style="color:${r.pos===1?'var(--pu)':'var(--tx)'}">${r.pos}</strong></td>
+        <td>${r.nat} ${r.rider}</td>
+        <td style="color:var(--mu);font-size:11px">${r.team}</td>
+        <td><strong style="color:${r.pos===1?'#bf7aff':'var(--tx)'}">${r.points}</strong></td>
+      </tr>`).join('')}</tbody></table></div>
+    </div>` : ''}
     <div class="card">
       <h3>Points Jersey — Stage by Stage</h3><div class="sub">Who held the Maglia Ciclamino</div>
       <div class="tw"><table><thead><tr><th>Stage</th><th>Date</th><th>Leader</th><th>Key Event</th></tr></thead>
@@ -493,7 +518,36 @@ function buildRiderCards(list){
         ${r.tourExp.Vuelta&&r.tourExp.Vuelta!=='—'?`<div style="font-size:11px"><strong style="color:var(--or)">Vuelta:</strong> <span style="color:var(--mu)">${r.tourExp.Vuelta}</span></div>`:''}
       </div>
       <div style="margin-top:8px;font-size:11px;color:var(--mu);font-style:italic">${r.bio}</div>
+      ${buildStagePerf(r.name)}
     </div>`).join('');
+}
+
+function buildStagePerf(name){
+  const perf = D.riderStagePerf && D.riderStagePerf[name];
+  if(!perf||!perf.length) return '';
+  const topPos = perf.filter(p=>p.pos).sort((a,b)=>a.pos-b.pos)[0];
+  const avgWkg = perf.filter(p=>p.wkg!==null&&p.wkg!==undefined);
+  const maxWkg = avgWkg.length ? Math.max(...avgWkg.map(p=>p.wkg)) : null;
+  const meanWkg = avgWkg.length ? (avgWkg.reduce((s,p)=>s+p.wkg,0)/avgWkg.length).toFixed(1) : null;
+  const stageWins = perf.filter(p=>p.pos===1);
+  return `
+    <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--bd)">
+      <div style="font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;font-weight:700">Stage Performances</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px">
+        ${perf.map(p=>`<div title="Stage ${p.s}${p.pos?` — Pos ${p.pos}`:''}${p.wkg?` — ${p.wkg} W/kg`:''}"
+          style="width:22px;height:22px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;
+          background:${p.pos===1?'var(--pk)':p.pos&&p.pos<=3?'rgba(24,100,232,.5)':p.pos&&p.pos<=10?'rgba(24,168,107,.35)':p.wkg&&p.wkg>=6?'rgba(155,31,232,.35)':'var(--d2)'};
+          color:${p.pos&&p.pos<=3||p.pos===1?'#fff':'var(--mu)'};
+          border:1px solid ${p.pos===1?'var(--pk)':p.pos&&p.pos<=10?'rgba(24,168,107,.4)':'var(--bd)'}">
+          ${p.pos===1?'🏆':p.pos&&p.pos<=10?p.pos:p.s}
+        </div>`).join('')}
+      </div>
+      <div style="display:flex;gap:10px;font-size:11px">
+        ${topPos?`<span><span style="color:var(--mu)">Best:</span> <strong style="color:var(--pk)">P${topPos.pos} S${topPos.s}</strong></span>`:''}
+        ${maxWkg?`<span><span style="color:var(--mu)">Peak:</span> <strong style="color:#bf7aff">${maxWkg} W/kg</strong><span style="font-size:9px;color:var(--mu);font-style:italic">est</span></span>`:''}
+        ${meanWkg?`<span><span style="color:var(--mu)">Avg:</span> <strong>${meanWkg} W/kg</strong><span style="font-size:9px;color:var(--mu);font-style:italic">est</span></span>`:''}
+      </div>
+    </div>`;
 }
 async function loadRiderPhotos(){
   const visible=document.querySelectorAll('[id^="av-"]');
