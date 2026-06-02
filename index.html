@@ -525,27 +525,49 @@ function buildRiderCards(list){
 function buildStagePerf(name){
   const perf = D.riderStagePerf && D.riderStagePerf[name];
   if(!perf||!perf.length) return '';
-  const topPos = perf.filter(p=>p.pos).sort((a,b)=>a.pos-b.pos)[0];
-  const avgWkg = perf.filter(p=>p.wkg!==null&&p.wkg!==undefined);
-  const maxWkg = avgWkg.length ? Math.max(...avgWkg.map(p=>p.wkg)) : null;
-  const meanWkg = avgWkg.length ? (avgWkg.reduce((s,p)=>s+p.wkg,0)/avgWkg.length).toFixed(1) : null;
-  const stageWins = perf.filter(p=>p.pos===1);
+
+  const topPos  = perf.filter(p=>p.pos).sort((a,b)=>a.pos-b.pos)[0];
+  const wkgData = perf.filter(p=>p.wkg!=null);
+  const maxWkg  = wkgData.length ? Math.max(...wkgData.map(p=>p.wkg)) : null;
+  const meanWkg = wkgData.length ? (wkgData.reduce((s,p)=>s+p.wkg,0)/wkgData.length).toFixed(1) : null;
+  // Mountain-only avg (stages 4,5,7,9,14,16,19,20)
+  const mtWkg   = perf.filter(p=>[4,5,7,9,14,16,19,20].includes(p.s)&&p.wkg!=null);
+  const mtAvg   = mtWkg.length ? (mtWkg.reduce((s,p)=>s+p.wkg,0)/mtWkg.length).toFixed(1) : null;
+
+  const tiles = perf.map(p=>{
+    const isWin    = p.pos===1;
+    const isPodium = p.pos&&p.pos<=3;
+    const isTop10  = p.pos&&p.pos<=10;
+    const isHighWkg= p.wkg&&p.wkg>=6.0;
+    const isMedWkg = p.wkg&&p.wkg>=5.0&&p.wkg<6.0;
+    const bg = isWin    ? 'var(--pk)'
+             : isPodium ? 'rgba(24,100,232,.6)'
+             : isTop10  ? 'rgba(24,168,107,.45)'
+             : isHighWkg? 'rgba(155,31,232,.45)'
+             : isMedWkg ? 'rgba(232,112,24,.25)'
+             : 'var(--d2)';
+    const fg = (isWin||isPodium) ? '#fff' : isTop10 ? '#5de0a0' : 'var(--mu)';
+    const bdr= isWin ? 'var(--pk)' : isTop10 ? 'rgba(24,168,107,.5)' : 'var(--bd)';
+    const lbl= isWin ? '1' : p.pos&&p.pos<=10 ? p.pos : p.s;
+    const tip= `S${p.s}${p.pos?` Pos ${p.pos}`:''}${p.wkg?` ${p.wkg}W/kg (est)`:''}`;
+    return `<div title="${tip}" style="width:20px;height:20px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;background:${bg};color:${fg};border:1px solid ${bdr};cursor:default">${lbl}</div>`;
+  }).join('');
+
   return `
     <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--bd)">
-      <div style="font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;font-weight:700">Stage Performances</div>
-      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px">
-        ${perf.map(p=>`<div title="Stage ${p.s}${p.pos?` — Pos ${p.pos}`:''}${p.wkg?` — ${p.wkg} W/kg`:''}"
-          style="width:22px;height:22px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;
-          background:${p.pos===1?'var(--pk)':p.pos&&p.pos<=3?'rgba(24,100,232,.5)':p.pos&&p.pos<=10?'rgba(24,168,107,.35)':p.wkg&&p.wkg>=6?'rgba(155,31,232,.35)':'var(--d2)'};
-          color:${p.pos&&p.pos<=3||p.pos===1?'#fff':'var(--mu)'};
-          border:1px solid ${p.pos===1?'var(--pk)':p.pos&&p.pos<=10?'rgba(24,168,107,.4)':'var(--bd)'}">
-          ${p.pos===1?'🏆':p.pos&&p.pos<=10?p.pos:p.s}
-        </div>`).join('')}
+      <div style="font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;font-weight:700">Stage-by-stage performance</div>
+      <div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:7px">${tiles}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;font-size:11px">
+        ${topPos ? `<span title="Best single-stage result"><span style="color:var(--mu)">Best:</span> <strong style="color:var(--pk)">P${topPos.pos} S${topPos.s}</strong></span>` : ''}
+        ${maxWkg  ? `<span title="Peak W/kg on any stage (estimated)"><span style="color:var(--mu)">Peak:</span> <strong style="color:#bf7aff">${maxWkg}</strong><span style="color:var(--mu)"> W/kg</span><span style="font-size:9px;color:var(--mu);font-style:italic"> est</span></span>` : ''}
+        ${mtAvg   ? `<span title="Avg W/kg across mountain stages (estimated)"><span style="color:var(--mu)">Mtn avg:</span> <strong>${mtAvg}</strong><span style="color:var(--mu)"> W/kg</span><span style="font-size:9px;color:var(--mu);font-style:italic"> est</span></span>` : ''}
       </div>
-      <div style="display:flex;gap:10px;font-size:11px">
-        ${topPos?`<span><span style="color:var(--mu)">Best:</span> <strong style="color:var(--pk)">P${topPos.pos} S${topPos.s}</strong></span>`:''}
-        ${maxWkg?`<span><span style="color:var(--mu)">Peak:</span> <strong style="color:#bf7aff">${maxWkg} W/kg</strong><span style="font-size:9px;color:var(--mu);font-style:italic">est</span></span>`:''}
-        ${meanWkg?`<span><span style="color:var(--mu)">Avg:</span> <strong>${meanWkg} W/kg</strong><span style="font-size:9px;color:var(--mu);font-style:italic">est</span></span>`:''}
+      <div style="margin-top:5px;display:flex;gap:8px;font-size:10px;color:var(--mu);flex-wrap:wrap">
+        <span style="display:flex;align-items:center;gap:3px"><span style="width:10px;height:10px;border-radius:2px;background:var(--pk);display:inline-block"></span>Win</span>
+        <span style="display:flex;align-items:center;gap:3px"><span style="width:10px;height:10px;border-radius:2px;background:rgba(24,100,232,.6);display:inline-block"></span>Top 3</span>
+        <span style="display:flex;align-items:center;gap:3px"><span style="width:10px;height:10px;border-radius:2px;background:rgba(24,168,107,.45);display:inline-block"></span>Top 10</span>
+        <span style="display:flex;align-items:center;gap:3px"><span style="width:10px;height:10px;border-radius:2px;background:rgba(155,31,232,.45);display:inline-block"></span>≥6.0 W/kg</span>
+        <span style="color:var(--mu);font-style:italic">Hover tiles for detail</span>
       </div>
     </div>`;
 }
