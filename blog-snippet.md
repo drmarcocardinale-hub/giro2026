@@ -1,8 +1,8 @@
-## 🚴 Giro d'Italia 2026 — Stage 21 Update (May 31, 2026)
+## 🚴 Giro d'Italia 2026 — Stage 21 Update (June 02, 2026)
 
 **Stage 21:** Roma → Roma (131 km · SPRINT)
 
-**Winner:** Jonathan Milan ()
+**Winner:** Jonathan Milan (Lidl-Trek)
 
 ### 🌸 General Classification (after Stage 21)
 | Pos | Rider | Team | Gap |
