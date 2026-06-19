@@ -1,4 +1,4 @@
-## 🚴 Giro d'Italia 2026 — Stage 21 Update (June 18, 2026)
+## 🚴 Giro d'Italia 2026 — Stage 21 Update (June 19, 2026)
 
 **Stage 21:** Roma → Roma (131 km · SPRINT)
 
