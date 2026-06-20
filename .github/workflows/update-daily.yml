@@ -1,10 +1,11 @@
 name: 🚴 Daily Giro Data Update
+# ⛔ Race complete — automatic schedule disabled (Vingegaard wins 2026 Giro)
+# Re-enable by restoring the schedule block below for future races
 
 on:
-  schedule:
-    # Runs every day at 20:00 UTC (22:00 CET) during the race
-    - cron: '0 20 * * *'
-  # Also allow manual trigger from GitHub Actions tab
+  # schedule:
+  #   - cron: '0 20 * * *'
+  # Manual trigger still available from GitHub Actions tab
   workflow_dispatch:
 
 permissions:
